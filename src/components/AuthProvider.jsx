@@ -18,7 +18,6 @@ export function AuthProvider({children}){
     
     useEffect(() => {
         return onAuthStateChanged(auth,(v) => {
-            console.log(v)
             setAuth(v)
         })
     },[])
@@ -27,7 +26,6 @@ export function AuthProvider({children}){
         if(!auth_) return
         const userDoc = doc(db,"Users",auth_.uid)
         return onSnapshot(userDoc, (v) => {
-            console.log(v.data())
             setUser(v.data())
         })
     },[auth_])

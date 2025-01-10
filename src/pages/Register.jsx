@@ -1,11 +1,14 @@
 import { createUserWithEmailAndPassword } from "firebase/auth"
 import { useState } from "react"
 import { Link,useNavigate } from "react-router-dom"
-import { auth } from "../firebase"
+import { auth, db } from "../firebase"
+import { useAuth } from "../components/AuthProvider"
+import { doc, setDoc, updateDoc } from "firebase/firestore"
 
 export default function Register(){
 
     const navigate = useNavigate()
+    const user = useAuth()
     const [email, setEmail] = useState("")
     const [psw, setPsw] = useState("")
     const [psw2, setPsw2] = useState("")
@@ -17,8 +20,12 @@ export default function Register(){
             setError("Passwords must match!")
             return
         }
+        // console.log(user.auth.uid)
         createUserWithEmailAndPassword(auth,email,psw)
-        .then(() => {
+        .then((v) => {
+            console.log(v)
+            const userDoc = doc(db,"Users",v.user.uid)
+            setDoc(userDoc,{ProfilePic:"https://upload.wikimedia.org/wikipedia/commons/7/7c/Profile_avatar_placeholder_large.png?20150327203541", DisplayName:email.split("@")[0]})
             navigate("/")
         }).catch((e) => {
             console.log(JSON.stringify(e))
@@ -33,7 +40,7 @@ export default function Register(){
                     setError("Email already in use!")
                     break;
                 default:
-                    setError("An unkown error has occured!")
+                    setError("An unkown error has occured! : " + e.code)
                     break;
             }
         })
