@@ -7,6 +7,7 @@ import Register from './pages/Register'
 import Home from './pages/Home'
 import { AuthProvider, useAuth } from './components/AuthProvider'
 import { useEffect } from 'react'
+import Settings from './pages/Settings'
 
 function App() {
   const auth = useAuth()
@@ -14,10 +15,10 @@ function App() {
   const navigate = useNavigate()
 
   useEffect(() => {
-    if(auth === null) navigate("/login")
+    if(auth.auth === null) navigate("/login")
   },[auth])
 
-  if(auth) return <Outlet/> 
+  if(auth.user) return <Outlet/> 
   else return <p className='fixed top-0 left-0 w-full h-screen bg-white flex justify-center items-center'>Loading...</p>
 }
 
@@ -27,7 +28,8 @@ function App() {
 const router = createBrowserRouter([
   {
     element: <App />, children: [
-      {path: "/", element: <Home />}
+      {path: "/", element: <Home />},
+      { path: "/settings", element: <Settings /> }
     ]
   },
   { path: "/login", element: <Login /> },
