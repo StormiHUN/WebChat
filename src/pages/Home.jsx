@@ -1,6 +1,9 @@
 import { Link } from "react-router-dom"
+import { useAuth } from "../components/AuthProvider"
 
 export default function Home() {
+
+    const auth = useAuth()
 
     return (
         <div className="flex min-h-screen">
@@ -12,8 +15,8 @@ export default function Home() {
                     </Link>
                 </div>
                 <Link className="sticky bottom-0 flex items-center p-4 gap-2 border-t-2 border-blue-500 hover:bg-blue-50 transition-all" to="/settings">
-                    <img className="w-12 h-12 rounded-full border p-1 border-blue-500" src="https://cdn.usdairy.com/optimize/getmedia/b5108b6f-59c3-4cc4-b1d5-4b9b0d1e0c54/swiss.jpg.jpg.aspx?format=webp" />
-                    <p className="text-xl">Sajt</p>
+                    <img className="w-12 h-12 rounded-full border p-1 border-blue-500" src={auth.user.ProfilePic} />
+                    <p className="text-xl">{auth.user.DisplayName}</p>
                     <img className="ml-auto" src="/settings.svg" />
                 </Link>
             </nav>
