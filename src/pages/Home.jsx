@@ -1,18 +1,46 @@
 import { Link } from "react-router-dom"
 import { useAuth } from "../components/AuthProvider"
+import { db } from "../firebase"
+import { collection, getDocs } from "firebase/firestore"
+import { useEffect } from "react"
+import { useState } from "react"
 
 export default function Home() {
 
     const auth = useAuth()
+    const [users, setUsers] = useState([])
+
+    async function getUsers() {
+        const tempArray = []
+        const querySnapshot = await getDocs(collection(db, "Users"));
+        querySnapshot.forEach((doc) => {
+            const temp = {
+                id: doc.id,
+                DisplayName: doc.data().DisplayName,
+                ProfilePic: doc.data().ProfilePic
+            }
+            if(temp.id != auth.auth.uid) tempArray.push(temp)
+        });
+        setUsers(tempArray)
+    }
+
+    useEffect(() => {
+        getUsers()
+    }, [])
+
 
     return (
         <div className="flex min-h-screen">
             <nav className="w-96 border-r-2 border-blue-500 h-screen flex flex-col justify-between sticky top-0">
                 <div className="p-2">
-                    <Link className="flex p-2 gap-2 items-center rounded border border-transparent hover:bg-blue-50 hover:border-blue-500 transition-all">
-                        <img className="w-16 h-16 rounded-full border p-1 border-blue-500" src="https://cdn.usdairy.com/optimize/getmedia/b5108b6f-59c3-4cc4-b1d5-4b9b0d1e0c54/swiss.jpg.jpg.aspx?format=webp" />
-                        <p className="text-xl">Sajt</p>
-                    </Link>
+                    {
+                        users.map(user =>
+                            <Link key={user.id} className="flex p-2 gap-2 items-center rounded border border-transparent hover:bg-blue-50 hover:border-blue-500 transition-all">
+                                <img className="w-16 h-16 rounded-full border p-1 border-blue-500" src={user.ProfilePic} />
+                                <p className="text-xl">{user.DisplayName}</p>
+                            </Link>
+                        )
+                    }
                 </div>
                 <Link className="sticky bottom-0 flex items-center p-4 gap-2 border-t-2 border-blue-500 hover:bg-blue-50 transition-all" to="/settings">
                     <img className="w-12 h-12 rounded-full border p-1 border-blue-500" src={auth.user.ProfilePic} />
