@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom"
 import { useAuth } from "../components/AuthProvider"
 import { db } from "../firebase"
-import { collection, getDocs } from "firebase/firestore"
+import { collection, getDocs, doc, setDoc, addDoc, onSnapshot, orderBy, Timestamp, query, where } from "firebase/firestore"
 import { useEffect } from "react"
 import { useState } from "react"
 
@@ -9,6 +9,11 @@ export default function Home() {
 
     const auth = useAuth()
     const [users, setUsers] = useState([])
+    const [msgs, setMsgs] = useState([])
+    const [curConv, setCurConv] = useState("")
+    const [msg, setMsg] = useState("")
+    const [partner, setPartner] = useState({})
+    const [partnerId, setPartnerId] = useState("")
 
     async function getUsers() {
         const tempArray = []
@@ -19,15 +24,72 @@ export default function Home() {
                 DisplayName: doc.data().DisplayName,
                 ProfilePic: doc.data().ProfilePic
             }
-            if(temp.id != auth.auth.uid) tempArray.push(temp)
+            if (temp.id != auth.auth.uid) tempArray.push(temp)
         });
         setUsers(tempArray)
     }
 
-    useEffect(() => {
-        getUsers()
-    }, [])
+    async function getConversation(partnerId) {
+        let conversationId = null
+        const querySnapshot = await getDocs(collection(db, "Conversations"));
+        querySnapshot.forEach((doc) => {
+            if (doc.data().userOne == auth.auth.uid && doc.data().userTwo == partnerId){
+                conversationId = doc.id
+                
+            } 
+            else if (doc.data().userOne == partnerId && doc.data().userTwo == auth.auth.uid){
+                conversationId = doc.id
 
+            } 
+        })
+        if (conversationId == null) {
+            const newConv = await addDoc(collection(db, "Conversations"), { userOne: auth.auth.uid, userTwo: partnerId })
+            setCurConv(newConv.id)
+        }
+        if (!(conversationId == null)) {
+            setCurConv(conversationId)
+            getMessages(conversationId)
+        }
+    }
+
+    async function getMessages(conversationId) {
+        let tempArray = []
+        const querySnapshot = await getDocs(collection(db, "Messages"));
+        querySnapshot.forEach((doc) => {
+            console.log(doc.data().conversationId == conversationId)
+            if (doc.data().conversationId == conversationId) tempArray.push(doc.data())
+        })
+        setMsgs(tempArray)
+        console.log(msgs)
+    }
+
+    async function sendMessage() {
+        await addDoc(collection(db, "Messages"), { conversationId: curConv, message: msg, senderId: auth.auth.uid, time: new Date().getHours() + ":" + new Date().getMinutes() });
+    }
+
+    function sortStuff(snap){
+        let tempArray = snap.docs.map(doc => doc.data())
+        console.log(tempArray[0].time.split(":")[0]*60 + tempArray[0].time.split(":")[1]*1)
+        return tempArray.sort((a, b) => (a.time.split(":")[0]*60 + a.time.split(":")[1]*1) - (b.time.split(":")[0]*60 + b.time.split(":")[1]*1))
+    }
+
+    async function getSingleUserData(userId) {
+        const querySnapshot = await getDocs(collection(db, "Users"));
+        querySnapshot.forEach(user => {
+            if(user.id == userId){
+                setPartner({ProfilePic : user.data().ProfilePic, DisplayName : user.data().DisplayName})
+            } 
+        })
+    }
+
+    getUsers()
+
+    useEffect(() => {
+        const unsub = onSnapshot(query (collection(db, 'Messages'), where("conversationId", "==", curConv)), (snap) => {
+            setMsgs(sortStuff(snap));
+          });
+          return unsub;
+    }, [])
 
     return (
         <div className="flex min-h-screen">
@@ -35,7 +97,7 @@ export default function Home() {
                 <div className="p-2">
                     {
                         users.map(user =>
-                            <Link key={user.id} className="flex p-2 gap-2 items-center rounded border border-transparent hover:bg-blue-50 hover:border-blue-500 transition-all">
+                            <Link onClick={() => getConversation(user.id)} key={user.id} className="flex p-2 gap-2 items-center rounded border border-transparent hover:bg-blue-50 hover:border-blue-500 transition-all">
                                 <img className="w-16 h-16 rounded-full border p-1 border-blue-500" src={user.ProfilePic} />
                                 <p className="text-xl">{user.DisplayName}</p>
                             </Link>
@@ -50,29 +112,31 @@ export default function Home() {
             </nav>
             <div className="flex flex-col flex-1">
                 <div className="p-4">
-
-                    <div className="flex p-2 gap-2 w-2/3">
-                        <img className="w-12 h-12 rounded-full border border-blue-500" src="https://cdn.usdairy.com/optimize/getmedia/b5108b6f-59c3-4cc4-b1d5-4b9b0d1e0c54/swiss.jpg.jpg.aspx?format=webp" />
-                        <div className="flex flex-col">
-                            <p className="text-sm font-bold">Sajt</p>
-                            <p className="bg-blue-200 p-2 rounded-lg mt-1">Lorem ipsum dolor sit amet consectetur adipisicing elit. Distinctio officiis voluptatum vitae rem corporis temporibus a enim vero consequatur, ut sit nemo, libero atque consequuntur illo dolores sapiente quas quos eligendi quidem sequi, cupiditate accusantium sunt repellendus? Labore a quaerat sequi impedit fugiat soluta asperiores, nisi cum, aspernatur, optio voluptatibus veniam est esse suscipit alias. Iusto, id nesciunt. Facilis eius illum distinctio ratione cum qui, ex at mollitia cumque quos reprehenderit soluta. Vitae, esse minima dolorem adipisci consequatur eligendi nesciunt itaque autem repellendus voluptas cumque voluptatum, ipsa ab reiciendis beatae, dolor sed facere dolores ex ea quasi! Blanditiis, voluptatibus laborum iusto mollitia reprehenderit ut nobis dolores dolore, iste dolorum veniam corporis modi quasi debitis fuga? Ut at distinctio dolorum corporis delectus voluptates illo impedit! Eaque eveniet aperiam aliquam repudiandae perferendis soluta earum repellat consectetur nesciunt rerum sequi animi, cupiditate maxime et. Consectetur quae sunt omnis harum deserunt dignissimos esse ab, doloribus suscipit veniam eaque, laudantium iure repellendus atque, blanditiis error sit nostrum nisi numquam? Iusto neque iste, quas distinctio optio voluptate aperiam error id cum itaque saepe deserunt nemo alias dolores exercitationem, excepturi recusandae nihil voluptas explicabo. Illum, ab adipisci. Ullam corrupti amet quos quibusdam nisi quasi nobis natus nemo.</p>
-                            <p className="text-sm">22:02</p>
+                    <div className="max-h-[836px] overflow-scroll overflow-x-hidden">
+                    {msgs.length < 1 ? <div className="text-xl p-1 mx-auto border-b-2 border-blue-500">Select a conversation to start chatting!</div> : msgs.map(m => (m.senderId == auth.auth.uid ?
+                        <div className="flex p-2 gap-2 ml-auto w-2/3">
+                            <div className="flex flex-col ml-auto">
+                                <p className="text-sm font-bold ml-auto">{auth.user.DisplayName}</p>
+                                <p className="bg-blue-200 p-2 rounded-lg mt-1">{m.message}</p>
+                                <p className="text-sm ml-auto">{m.time}</p>
+                            </div>
+                            <img className="w-12 h-12 rounded-full border border-blue-500" src={auth.user.ProfilePic} />
                         </div>
-                    </div>
-
-                    <div className="flex p-2 gap-2 ml-auto w-2/3">
-                        <div className="flex flex-col">
-                            <p className="text-sm font-bold ml-auto">Sajt</p>
-                            <p className="bg-blue-200 p-2 rounded-lg mt-1">Lorem ipsum dolor sit amet consectetur adipisicing elit. Quisquam cumque repudiandae vero sint dolores ab molestias explicabo consectetur veniam odit possimus totam sit autem harum adipisci asperiores mollitia eaque, temporibus id pariatur ipsum laboriosam assumenda blanditiis? Cum totam laboriosam ad optio autem fuga aliquid expedita nesciunt dicta a maxime aliquam vero, omnis suscipit quo officia dolorum animi consequatur error non dolore vel! Nihil, facilis omnis adipisci nesciunt alias tempora laudantium tempore esse rem perferendis cumque eligendi illum sequi iusto ad id, natus nam veniam sint soluta? Exercitationem voluptates eum optio ea earum quam inventore, saepe obcaecati maxime laudantium odit ratione, fuga voluptate temporibus iste! Dignissimos repellat id aperiam non saepe quo aliquam ipsum laboriosam consequatur vitae illo architecto, consequuntur ipsam. Accusamus, non harum asperiores eum ut doloremque, consectetur omnis debitis fugiat consequuntur ex iusto suscipit assumenda dicta hic eaque? Illo natus, odio dolore, est corporis praesentium nisi labore repudiandae libero fugiat optio alias nam provident velit, quaerat ratione accusamus temporibus tenetur numquam repellat repellendus quos porro sit sequi? Itaque debitis maiores qui dolorum porro deserunt necessitatibus eum adipisci esse molestiae magnam consequuntur tempore corporis iure molestias praesentium totam corrupti ratione, doloribus cumque. Excepturi obcaecati explicabo iusto rerum! Hic, modi ea.</p>
-                            <p className="text-sm ml-auto">22:02</p>
+                        :
+                        <div className="flex p-2 gap-2 w-2/3">
+                            <img className="w-12 h-12 rounded-full border border-blue-500" src={partner.ProfilePic} />
+                            <div className="flex flex-col">
+                                <p className="text-sm font-bold">{partner.DisplayName}</p>
+                                <p className="bg-blue-200 p-2 rounded-lg mt-1">{m.message}</p>
+                                <p className="text-sm">{m.time}</p>
+                            </div>
                         </div>
-                        <img className="w-12 h-12 rounded-full border border-blue-500" src="https://cdn.usdairy.com/optimize/getmedia/b5108b6f-59c3-4cc4-b1d5-4b9b0d1e0c54/swiss.jpg.jpg.aspx?format=webp" />
+                    ))}
                     </div>
-
                 </div>
                 <div className="mt-auto w-full p-4 flex gap-2">
-                    <input className="bg-gray-50 border border-blue-300 rounded-full p-2 w-full hover:border-blue-500 transition-all" placeholder="Message" type="text" />
-                    <button className="bg-blue-300 hover:bg-blue-500 rounded-full transition-all p-4"><img src="send.svg" /></button>
+                    <input className="bg-gray-50 border border-blue-300 rounded-full p-2 w-full hover:border-blue-500 transition-all" placeholder="Message" type="text" value={msg} onChange={(e) => setMsg(e.target.value)} />
+                    <button className="bg-blue-300 hover:bg-blue-500 rounded-full transition-all p-4" onClick={() => sendMessage()}><img src="send.svg" /></button>
                 </div>
             </div>
         </div>
