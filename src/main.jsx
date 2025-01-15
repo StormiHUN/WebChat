@@ -28,7 +28,7 @@ function App() {
 const router = createBrowserRouter([
   {
     element: <App />, children: [
-      {path: "/", element: <Home />},
+      {path: "/WebChat", element: <Home />},
       { path: "/settings", element: <Settings /> }
     ]
   },
