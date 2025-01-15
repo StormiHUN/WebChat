@@ -31,16 +31,11 @@ export default function Home() {
 
     async function getConversation(partnerId) {
         let conversationId = null
+        getSingleUserData(partnerId)
         const querySnapshot = await getDocs(collection(db, "Conversations"));
         querySnapshot.forEach((doc) => {
-            if (doc.data().userOne == auth.auth.uid && doc.data().userTwo == partnerId){
-                conversationId = doc.id
-                
-            } 
-            else if (doc.data().userOne == partnerId && doc.data().userTwo == auth.auth.uid){
-                conversationId = doc.id
-
-            } 
+            if (doc.data().userOne == auth.auth.uid && doc.data().userTwo == partnerId) conversationId = doc.id
+            else if (doc.data().userOne == partnerId && doc.data().userTwo == auth.auth.uid) conversationId = doc.id
         })
         if (conversationId == null) {
             const newConv = await addDoc(collection(db, "Conversations"), { userOne: auth.auth.uid, userTwo: partnerId })
@@ -56,21 +51,23 @@ export default function Home() {
         let tempArray = []
         const querySnapshot = await getDocs(collection(db, "Messages"));
         querySnapshot.forEach((doc) => {
-            console.log(doc.data().conversationId == conversationId)
             if (doc.data().conversationId == conversationId) tempArray.push(doc.data())
         })
         setMsgs(tempArray)
-        console.log(msgs)
     }
 
     async function sendMessage() {
-        await addDoc(collection(db, "Messages"), { conversationId: curConv, message: msg, senderId: auth.auth.uid, time: new Date().getHours() + ":" + new Date().getMinutes() });
+        await addDoc(collection(db, "Messages"), { conversationId: curConv, message: msg, senderId: auth.auth.uid, time:new Date().getMonth() + "-" + new Date().getDay() + "T" + new Date().getHours() + ":" + new Date().getMinutes() + ":" + new Date().getSeconds() });
+    }
+
+    function getSeconds(date){
+        let tempArray = [date.time.split("T")[0].split("-"),date.time.split("T")[1].split(":")]
+        return tempArray[0]*30*24*60*60 + tempArray[1]*60*60 + tempArray[3]*60 + tempArray[4]*60
     }
 
     function sortStuff(snap){
         let tempArray = snap.docs.map(doc => doc.data())
-        console.log(tempArray[0].time.split(":")[0]*60 + tempArray[0].time.split(":")[1]*1)
-        return tempArray.sort((a, b) => (a.time.split(":")[0]*60 + a.time.split(":")[1]*1) - (b.time.split(":")[0]*60 + b.time.split(":")[1]*1))
+        return tempArray.sort((a, b) => (getSeconds(a)) - (getSeconds(b)))
     }
 
     async function getSingleUserData(userId) {
@@ -85,18 +82,18 @@ export default function Home() {
     getUsers()
 
     useEffect(() => {
-        const unsub = onSnapshot(query (collection(db, 'Messages'), where("conversationId", "==", curConv)), (snap) => {
+        const unsub = onSnapshot(query (collection(db, 'Messages'), where("conversationId", "==", curConv), orderBy("time")), (snap) => {
             setMsgs(sortStuff(snap));
           });
           return unsub;
-    }, [])
+    }, [msgs])
 
     return (
         <div className="flex min-h-screen">
             <nav className="w-96 border-r-2 border-blue-500 h-screen flex flex-col justify-between sticky top-0">
                 <div className="p-2">
                     {
-                        users.map(user =>
+                        users.map(user => 
                             <Link onClick={() => getConversation(user.id)} key={user.id} className="flex p-2 gap-2 items-center rounded border border-transparent hover:bg-blue-50 hover:border-blue-500 transition-all">
                                 <img className="w-16 h-16 rounded-full border p-1 border-blue-500" src={user.ProfilePic} />
                                 <p className="text-xl">{user.DisplayName}</p>
@@ -118,7 +115,7 @@ export default function Home() {
                             <div className="flex flex-col ml-auto">
                                 <p className="text-sm font-bold ml-auto">{auth.user.DisplayName}</p>
                                 <p className="bg-blue-200 p-2 rounded-lg mt-1">{m.message}</p>
-                                <p className="text-sm ml-auto">{m.time}</p>
+                                <p className="text-sm ml-auto">{m.time.split("T")[1]}</p>
                             </div>
                             <img className="w-12 h-12 rounded-full border border-blue-500" src={auth.user.ProfilePic} />
                         </div>
@@ -128,7 +125,7 @@ export default function Home() {
                             <div className="flex flex-col">
                                 <p className="text-sm font-bold">{partner.DisplayName}</p>
                                 <p className="bg-blue-200 p-2 rounded-lg mt-1">{m.message}</p>
-                                <p className="text-sm">{m.time}</p>
+                                <p className="text-sm">{m.time.split("T")[1]}</p>
                             </div>
                         </div>
                     ))}
